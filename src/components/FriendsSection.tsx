@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useAuthStore, useSocialStore } from '@/stores/authStore';
+import { useState, useEffect } from 'react';
+import { useAuthStore, useSocialStore, useNotificationStore } from '@/stores/authStore';
 
 export const FriendsSection = () => {
   const { user } = useAuthStore();
@@ -12,15 +12,49 @@ export const FriendsSection = () => {
     acceptFriendRequest, 
     rejectFriendRequest,
     removeFriend,
-    getFriendProgress 
+    fetchFriendProgress,
+    fetchFriends,
+    fetchFriendRequests
   } = useSocialStore();
+  const { fetchNotifications } = useNotificationStore();
   
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [friendEmail, setFriendEmail] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
+  const [friendProgress, setFriendProgress] = useState<any>(null);
+  const [loadingProgress, setLoadingProgress] = useState(false);
+
+  // Fetch friends and requests on mount and periodically
+  useEffect(() => {
+    if (user) {
+      fetchFriends();
+      fetchFriendRequests();
+      
+      // Poll for new friend requests every 5 seconds
+      const interval = setInterval(() => {
+        fetchFriendRequests();
+        fetchFriends();
+      }, 5000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   const pendingRequests = friendRequests.filter(r => r.toUserId === user?.id && r.status === 'pending');
+
+  // Fetch friend progress when a friend is selected
+  useEffect(() => {
+    if (selectedFriend) {
+      setLoadingProgress(true);
+      fetchFriendProgress(selectedFriend).then(progress => {
+        setFriendProgress(progress);
+        setLoadingProgress(false);
+      });
+    } else {
+      setFriendProgress(null);
+    }
+  }, [selectedFriend, fetchFriendProgress]);
 
   const handleSendRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +72,15 @@ export const FriendsSection = () => {
     setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
-  const friendProgress = selectedFriend ? getFriendProgress(selectedFriend) : null;
+  const handleAcceptRequest = async (requestId: string) => {
+    await acceptFriendRequest(requestId);
+    await fetchNotifications(); // Refresh notifications after accepting
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    await rejectFriendRequest(requestId);
+    await fetchNotifications();
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -85,13 +127,13 @@ export const FriendsSection = () => {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => acceptFriendRequest(request.id)}
+                    onClick={() => handleAcceptRequest(request.id)}
                     className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600"
                   >
                     Accept
                   </button>
                   <button
-                    onClick={() => rejectFriendRequest(request.id)}
+                    onClick={() => handleRejectRequest(request.id)}
                     className="px-3 py-1.5 bg-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-300"
                   >
                     Decline
@@ -157,9 +199,15 @@ export const FriendsSection = () => {
                 </div>
                 
                 {/* Friend Progress Detail */}
-                {selectedFriend === friend.id && friendProgress && (
+                {selectedFriend === friend.id && (
                   <div className="mt-4 pt-4 border-t border-gray-100">
                     <h4 className="font-semibold text-gray-700 mb-3">Today's Progress</h4>
+                    {loadingProgress ? (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="ml-2 text-gray-500 text-sm">Loading...</span>
+                      </div>
+                    ) : friendProgress ? (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div className="bg-blue-50 rounded-lg p-3 text-center">
                         <p className="text-2xl font-bold text-blue-600">
@@ -175,7 +223,7 @@ export const FriendsSection = () => {
                       </div>
                       <div className="bg-green-50 rounded-lg p-3 text-center">
                         <p className="text-2xl font-bold text-green-600">
-                          {Math.round((friendProgress.completedHabits / friendProgress.totalHabits) * 100)}%
+                          {friendProgress.totalHabits > 0 ? Math.round((friendProgress.completedHabits / friendProgress.totalHabits) * 100) : 0}%
                         </p>
                         <p className="text-xs text-green-700">Completion</p>
                       </div>
@@ -184,6 +232,11 @@ export const FriendsSection = () => {
                         <p className="text-xs text-purple-700">Mood</p>
                       </div>
                     </div>
+                    ) : (
+                      <div className="text-center py-4 text-gray-500 text-sm">
+                        No progress data available
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

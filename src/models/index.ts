@@ -173,6 +173,34 @@ const ReflectionSchema = new Schema<IReflection>({
   improvement: { type: String },
 }, { timestamps: true });
 
+// Notification Interface
+export interface INotification extends Document {
+  _id: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
+  type: 'friend_request' | 'friend_accepted' | 'group_invite' | 'group_joined';
+  title: string;
+  message: string;
+  fromUserId?: mongoose.Types.ObjectId;
+  relatedId?: string;
+  isRead: boolean;
+  createdAt: Date;
+}
+
+// Notification Schema
+const NotificationSchema = new Schema<INotification>({
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  type: { 
+    type: String, 
+    enum: ['friend_request', 'friend_accepted', 'group_invite', 'group_joined'],
+    required: true
+  },
+  title: { type: String, required: true },
+  message: { type: String, required: true },
+  fromUserId: { type: Schema.Types.ObjectId, ref: 'User' },
+  relatedId: { type: String },
+  isRead: { type: Boolean, default: false },
+}, { timestamps: true });
+
 // Export Models
 export const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
 export const Task: Model<ITask> = mongoose.models.Task || mongoose.model<ITask>('Task', TaskSchema);
@@ -181,3 +209,4 @@ export const Friend: Model<IFriend> = mongoose.models.Friend || mongoose.model<I
 export const Group: Model<IGroup> = mongoose.models.Group || mongoose.model<IGroup>('Group', GroupSchema);
 export const GroupInvite: Model<IGroupInvite> = mongoose.models.GroupInvite || mongoose.model<IGroupInvite>('GroupInvite', GroupInviteSchema);
 export const Reflection: Model<IReflection> = mongoose.models.Reflection || mongoose.model<IReflection>('Reflection', ReflectionSchema);
+export const Notification: Model<INotification> = mongoose.models.Notification || mongoose.model<INotification>('Notification', NotificationSchema);

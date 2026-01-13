@@ -4,13 +4,40 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, Friend, FriendRequest, Group, GroupInvite, SharedProgress } from '@/types/user';
 
+// Notification type
+export interface Notification {
+  id: string;
+  type: 'friend_request' | 'friend_accepted' | 'group_invite' | 'group_joined';
+  title: string;
+  message: string;
+  fromUser?: {
+    id: string;
+    name: string;
+    avatar: string;
+  };
+  relatedId?: string;
+  isRead: boolean;
+  createdAt: Date;
+}
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   signup: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => void;
+}
+
+interface NotificationState {
+  notifications: Notification[];
+  unreadCount: number;
+  isLoading: boolean;
+  fetchNotifications: () => Promise<void>;
+  markAsRead: (notificationIds: string[]) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  clearAll: () => Promise<void>;
 }
 
 interface SocialState {
@@ -18,103 +45,86 @@ interface SocialState {
   friendRequests: FriendRequest[];
   groups: Group[];
   groupInvites: GroupInvite[];
+  isLoading: boolean;
+  
+  // Fetch actions
+  fetchFriends: () => Promise<void>;
+  fetchFriendRequests: () => Promise<void>;
+  fetchGroups: () => Promise<void>;
+  fetchGroupInvites: () => Promise<void>;
   
   // Friend actions
   sendFriendRequest: (toEmail: string) => Promise<boolean>;
-  acceptFriendRequest: (requestId: string) => void;
-  rejectFriendRequest: (requestId: string) => void;
-  removeFriend: (friendId: string) => void;
+  acceptFriendRequest: (requestId: string) => Promise<void>;
+  rejectFriendRequest: (requestId: string) => Promise<void>;
+  removeFriend: (friendId: string) => Promise<void>;
   
   // Group actions
-  createGroup: (name: string, description?: string, isPrivate?: boolean) => void;
-  deleteGroup: (groupId: string) => void;
+  createGroup: (name: string, description?: string, isPrivate?: boolean) => Promise<void>;
+  deleteGroup: (groupId: string) => Promise<void>;
   inviteToGroup: (groupId: string, userEmail: string) => Promise<boolean>;
-  acceptGroupInvite: (inviteId: string) => void;
-  rejectGroupInvite: (inviteId: string) => void;
-  leaveGroup: (groupId: string) => void;
+  acceptGroupInvite: (inviteId: string) => Promise<void>;
+  rejectGroupInvite: (inviteId: string) => Promise<void>;
+  leaveGroup: (groupId: string) => Promise<void>;
   
   // Shared progress
+  friendProgressCache: { [key: string]: SharedProgress };
   getFriendProgress: (friendId: string) => SharedProgress | null;
+  fetchFriendProgress: (friendId: string) => Promise<SharedProgress | null>;
   getGroupProgress: (groupId: string) => SharedProgress[];
 }
-
-// Mock users database (in production, this would be a real database)
-const mockUsers: Map<string, { user: User; password: string }> = new Map();
-
-// Initialize with some demo users
-mockUsers.set('demo@test.com', {
-  user: {
-    id: 'demo-user-1',
-    name: 'Demo User',
-    email: 'demo@test.com',
-    avatar: '👤',
-    createdAt: new Date(),
-    streak: 5,
-    totalHabits: 12,
-  },
-  password: 'demo123',
-});
-
-mockUsers.set('john@test.com', {
-  user: {
-    id: 'john-user-2',
-    name: 'John Doe',
-    email: 'john@test.com',
-    avatar: '🧑',
-    createdAt: new Date(),
-    streak: 10,
-    totalHabits: 8,
-  },
-  password: 'john123',
-});
-
-mockUsers.set('jane@test.com', {
-  user: {
-    id: 'jane-user-3',
-    name: 'Jane Smith',
-    email: 'jane@test.com',
-    avatar: '👩',
-    createdAt: new Date(),
-    streak: 15,
-    totalHabits: 20,
-  },
-  password: 'jane123',
-});
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
       isAuthenticated: false,
+      isLoading: false,
       
       login: async (email: string, password: string) => {
-        const userData = mockUsers.get(email.toLowerCase());
-        if (userData && userData.password === password) {
-          set({ user: userData.user, isAuthenticated: true });
-          return true;
+        set({ isLoading: true });
+        try {
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            set({ user: data.user, isAuthenticated: true, isLoading: false });
+            return true;
+          }
+          set({ isLoading: false });
+          return false;
+        } catch (error) {
+          console.error('Login error:', error);
+          set({ isLoading: false });
+          return false;
         }
-        return false;
       },
       
       signup: async (name: string, email: string, password: string) => {
-        const emailLower = email.toLowerCase();
-        if (mockUsers.has(emailLower)) {
-          return false; // User already exists
+        set({ isLoading: true });
+        try {
+          const res = await fetch('/api/auth/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password }),
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            set({ user: data.user, isAuthenticated: true, isLoading: false });
+            return true;
+          }
+          set({ isLoading: false });
+          return false;
+        } catch (error) {
+          console.error('Signup error:', error);
+          set({ isLoading: false });
+          return false;
         }
-        
-        const newUser: User = {
-          id: `user-${Date.now()}`,
-          name,
-          email: emailLower,
-          avatar: '👤',
-          createdAt: new Date(),
-          streak: 0,
-          totalHabits: 0,
-        };
-        
-        mockUsers.set(emailLower, { user: newUser, password });
-        set({ user: newUser, isAuthenticated: true });
-        return true;
       },
       
       logout: () => {
@@ -126,12 +136,6 @@ export const useAuthStore = create<AuthState>()(
         if (currentUser) {
           const updatedUser = { ...currentUser, ...data };
           set({ user: updatedUser });
-          
-          // Update mock database
-          const userData = mockUsers.get(currentUser.email);
-          if (userData) {
-            mockUsers.set(currentUser.email, { ...userData, user: updatedUser });
-          }
         }
       },
     }),
@@ -148,232 +152,290 @@ export const useSocialStore = create<SocialState>()(
       friendRequests: [],
       groups: [],
       groupInvites: [],
+      friendProgressCache: {},
+      isLoading: false,
       
-      sendFriendRequest: async (toEmail: string) => {
-        const currentUser = useAuthStore.getState().user;
-        if (!currentUser) return false;
+      // Fetch Friends
+      fetchFriends: async () => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
         
-        // Make sure current user is in mockUsers (for users who signed up and page was refreshed)
-        if (!mockUsers.has(currentUser.email.toLowerCase())) {
-          mockUsers.set(currentUser.email.toLowerCase(), { 
-            user: currentUser, 
-            password: 'temp' // Password doesn't matter for friend requests
-          });
+        try {
+          const res = await fetch(`/api/friends?userId=${user.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            set({ friends: data.friends });
+          }
+        } catch (error) {
+          console.error('Fetch friends error:', error);
         }
-        
-        const targetUser = mockUsers.get(toEmail.toLowerCase());
-        if (!targetUser) return false;
-        
-        // Can't send request to yourself
-        if (targetUser.user.id === currentUser.id) return false;
-        
-        // Check if already friends or request exists
-        const existingFriend = get().friends.find(f => f.id === targetUser.user.id);
-        const existingRequest = get().friendRequests.find(
-          r => (r.fromUserId === currentUser.id && r.toUserId === targetUser.user.id) ||
-               (r.fromUserId === targetUser.user.id && r.toUserId === currentUser.id)
-        );
-        
-        if (existingFriend || existingRequest) return false;
-        
-        const newRequest: FriendRequest = {
-          id: `req-${Date.now()}`,
-          fromUserId: currentUser.id,
-          fromUserName: currentUser.name,
-          fromUserAvatar: currentUser.avatar,
-          toUserId: targetUser.user.id,
-          status: 'pending',
-          createdAt: new Date(),
-        };
-        
-        set(state => ({
-          friendRequests: [...state.friendRequests, newRequest],
-        }));
-        
-        return true;
       },
       
-      acceptFriendRequest: (requestId: string) => {
-        const request = get().friendRequests.find(r => r.id === requestId);
-        if (!request) return;
+      // Fetch Friend Requests
+      fetchFriendRequests: async () => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
         
-        const fromUser = Array.from(mockUsers.values()).find(u => u.user.id === request.fromUserId);
-        if (!fromUser) return;
-        
-        const newFriend: Friend = {
-          id: fromUser.user.id,
-          odak: fromUser.user.id,
-          name: fromUser.user.name,
-          avatar: fromUser.user.avatar,
-          addedAt: new Date(),
-          streak: fromUser.user.streak,
-          todayProgress: Math.floor(Math.random() * 100),
-        };
-        
-        set(state => ({
-          friends: [...state.friends, newFriend],
-          friendRequests: state.friendRequests.map(r =>
-            r.id === requestId ? { ...r, status: 'accepted' as const } : r
-          ),
-        }));
+        try {
+          const res = await fetch(`/api/friends/requests?userId=${user.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            set({ friendRequests: data.requests });
+          }
+        } catch (error) {
+          console.error('Fetch friend requests error:', error);
+        }
       },
       
-      rejectFriendRequest: (requestId: string) => {
-        set(state => ({
-          friendRequests: state.friendRequests.map(r =>
-            r.id === requestId ? { ...r, status: 'rejected' as const } : r
-          ),
-        }));
+      // Fetch Groups
+      fetchGroups: async () => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        
+        try {
+          const res = await fetch(`/api/groups?userId=${user.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            set({ groups: data.groups });
+          }
+        } catch (error) {
+          console.error('Fetch groups error:', error);
+        }
       },
       
-      removeFriend: (friendId: string) => {
-        set(state => ({
-          friends: state.friends.filter(f => f.id !== friendId),
-        }));
+      // Fetch Group Invites
+      fetchGroupInvites: async () => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        
+        try {
+          const res = await fetch(`/api/groups/invites?userId=${user.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            set({ groupInvites: data.invites });
+          }
+        } catch (error) {
+          console.error('Fetch group invites error:', error);
+        }
       },
       
-      createGroup: (name: string, description?: string, isPrivate: boolean = false) => {
-        const currentUser = useAuthStore.getState().user;
-        if (!currentUser) return;
+      // Send Friend Request
+      sendFriendRequest: async (toEmail: string) => {
+        const user = useAuthStore.getState().user;
+        if (!user) return false;
         
-        const newGroup: Group = {
-          id: `group-${Date.now()}`,
-          name,
-          description,
-          creatorId: currentUser.id,
-          members: [{
-            userId: currentUser.id,
-            userName: currentUser.name,
-            userAvatar: currentUser.avatar,
-            role: 'admin',
-            joinedAt: new Date(),
-          }],
-          createdAt: new Date(),
-          isPrivate,
-        };
-        
-        set(state => ({
-          groups: [...state.groups, newGroup],
-        }));
+        try {
+          const res = await fetch('/api/friends/requests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fromUserId: user.id, toEmail }),
+          });
+          
+          if (res.ok) {
+            // Refresh friend requests
+            await get().fetchFriendRequests();
+            return true;
+          }
+          return false;
+        } catch (error) {
+          console.error('Send friend request error:', error);
+          return false;
+        }
       },
       
-      deleteGroup: (groupId: string) => {
-        const currentUser = useAuthStore.getState().user;
-        const group = get().groups.find(g => g.id === groupId);
-        
-        if (!group || group.creatorId !== currentUser?.id) return;
-        
-        set(state => ({
-          groups: state.groups.filter(g => g.id !== groupId),
-        }));
+      // Accept Friend Request
+      acceptFriendRequest: async (requestId: string) => {
+        try {
+          const res = await fetch('/api/friends/requests', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requestId, action: 'accept' }),
+          });
+          
+          if (res.ok) {
+            await get().fetchFriends();
+            await get().fetchFriendRequests();
+          }
+        } catch (error) {
+          console.error('Accept friend request error:', error);
+        }
       },
       
+      // Reject Friend Request
+      rejectFriendRequest: async (requestId: string) => {
+        try {
+          const res = await fetch('/api/friends/requests', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requestId, action: 'reject' }),
+          });
+          
+          if (res.ok) {
+            await get().fetchFriendRequests();
+          }
+        } catch (error) {
+          console.error('Reject friend request error:', error);
+        }
+      },
+      
+      // Remove Friend
+      removeFriend: async (friendId: string) => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        
+        try {
+          const res = await fetch(`/api/friends?userId=${user.id}&friendId=${friendId}`, {
+            method: 'DELETE',
+          });
+          
+          if (res.ok) {
+            await get().fetchFriends();
+          }
+        } catch (error) {
+          console.error('Remove friend error:', error);
+        }
+      },
+      
+      // Create Group
+      createGroup: async (name: string, description?: string, isPrivate: boolean = false) => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        
+        try {
+          const res = await fetch('/api/groups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description, isPrivate, creatorId: user.id }),
+          });
+          
+          if (res.ok) {
+            await get().fetchGroups();
+          }
+        } catch (error) {
+          console.error('Create group error:', error);
+        }
+      },
+      
+      // Delete Group
+      deleteGroup: async (groupId: string) => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        
+        try {
+          const res = await fetch(`/api/groups?groupId=${groupId}&userId=${user.id}`, {
+            method: 'DELETE',
+          });
+          
+          if (res.ok) {
+            await get().fetchGroups();
+          }
+        } catch (error) {
+          console.error('Delete group error:', error);
+        }
+      },
+      
+      // Invite to Group
       inviteToGroup: async (groupId: string, userEmail: string) => {
-        const currentUser = useAuthStore.getState().user;
-        if (!currentUser) return false;
+        const user = useAuthStore.getState().user;
+        if (!user) return false;
         
-        const group = get().groups.find(g => g.id === groupId);
-        const targetUser = mockUsers.get(userEmail.toLowerCase());
-        
-        if (!group || !targetUser) return false;
-        
-        // Check if already member or invited
-        const isMember = group.members.some(m => m.userId === targetUser.user.id);
-        const existingInvite = get().groupInvites.find(
-          i => i.groupId === groupId && i.toUserId === targetUser.user.id && i.status === 'pending'
-        );
-        
-        if (isMember || existingInvite) return false;
-        
-        const newInvite: GroupInvite = {
-          id: `ginv-${Date.now()}`,
-          groupId,
-          groupName: group.name,
-          fromUserId: currentUser.id,
-          fromUserName: currentUser.name,
-          toUserId: targetUser.user.id,
-          status: 'pending',
-          createdAt: new Date(),
-        };
-        
-        set(state => ({
-          groupInvites: [...state.groupInvites, newInvite],
-        }));
-        
-        return true;
+        try {
+          const res = await fetch('/api/groups/invites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId, fromUserId: user.id, toEmail: userEmail }),
+          });
+          
+          return res.ok;
+        } catch (error) {
+          console.error('Invite to group error:', error);
+          return false;
+        }
       },
       
-      acceptGroupInvite: (inviteId: string) => {
-        const currentUser = useAuthStore.getState().user;
-        if (!currentUser) return;
-        
-        const invite = get().groupInvites.find(i => i.id === inviteId);
-        if (!invite) return;
-        
-        set(state => ({
-          groups: state.groups.map(g => {
-            if (g.id === invite.groupId) {
-              return {
-                ...g,
-                members: [...g.members, {
-                  userId: currentUser.id,
-                  userName: currentUser.name,
-                  userAvatar: currentUser.avatar,
-                  role: 'member' as const,
-                  joinedAt: new Date(),
-                }],
-              };
-            }
-            return g;
-          }),
-          groupInvites: state.groupInvites.map(i =>
-            i.id === inviteId ? { ...i, status: 'accepted' as const } : i
-          ),
-        }));
+      // Accept Group Invite
+      acceptGroupInvite: async (inviteId: string) => {
+        try {
+          const res = await fetch('/api/groups/invites', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inviteId, action: 'accept' }),
+          });
+          
+          if (res.ok) {
+            await get().fetchGroups();
+            await get().fetchGroupInvites();
+          }
+        } catch (error) {
+          console.error('Accept group invite error:', error);
+        }
       },
       
-      rejectGroupInvite: (inviteId: string) => {
-        set(state => ({
-          groupInvites: state.groupInvites.map(i =>
-            i.id === inviteId ? { ...i, status: 'rejected' as const } : i
-          ),
-        }));
+      // Reject Group Invite
+      rejectGroupInvite: async (inviteId: string) => {
+        try {
+          const res = await fetch('/api/groups/invites', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inviteId, action: 'reject' }),
+          });
+          
+          if (res.ok) {
+            await get().fetchGroupInvites();
+          }
+        } catch (error) {
+          console.error('Reject group invite error:', error);
+        }
       },
       
-      leaveGroup: (groupId: string) => {
-        const currentUser = useAuthStore.getState().user;
-        if (!currentUser) return;
+      // Leave Group
+      leaveGroup: async (groupId: string) => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
         
-        set(state => ({
-          groups: state.groups.map(g => {
-            if (g.id === groupId) {
-              return {
-                ...g,
-                members: g.members.filter(m => m.userId !== currentUser.id),
-              };
-            }
-            return g;
-          }).filter(g => g.members.length > 0),
-        }));
+        try {
+          const res = await fetch('/api/groups', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId, userId: user.id }),
+          });
+          
+          if (res.ok) {
+            await get().fetchGroups();
+          }
+        } catch (error) {
+          console.error('Leave group error:', error);
+        }
       },
       
-      getFriendProgress: (friendId: string): SharedProgress | null => {
-        const friend = get().friends.find(f => f.id === friendId);
-        if (!friend) return null;
-        
-        return {
-          odak: friend.id,
-          odakName: friend.name,
-          userAvatar: friend.avatar,
-          date: new Date().toDateString(),
-          completedHabits: Math.floor(Math.random() * 5) + 1,
-          totalHabits: Math.floor(Math.random() * 5) + 5,
-          streak: friend.streak,
-          mood: ['😊', '😐', '😞'][Math.floor(Math.random() * 3)] as '😊' | '😐' | '😞',
-        };
+      // Get Friend Progress from cache
+      getFriendProgress: (friendId: string) => {
+        return get().friendProgressCache[friendId] || null;
       },
       
-      getGroupProgress: (groupId: string): SharedProgress[] => {
+      // Fetch Friend Progress from API
+      fetchFriendProgress: async (friendId: string) => {
+        try {
+          const res = await fetch(`/api/friends/progress?friendId=${friendId}`);
+          if (res.ok) {
+            const data = await res.json();
+            set(state => ({
+              friendProgressCache: {
+                ...state.friendProgressCache,
+                [friendId]: data.progress
+              }
+            }));
+            return data.progress;
+          }
+          return null;
+        } catch (error) {
+          console.error('Fetch friend progress error:', error);
+          return null;
+        }
+      },
+      
+      // Get Group Progress (mock for now)
+      getGroupProgress: (groupId: string) => {
         const group = get().groups.find(g => g.id === groupId);
         if (!group) return [];
         
@@ -381,16 +443,113 @@ export const useSocialStore = create<SocialState>()(
           odak: member.userId,
           odakName: member.userName,
           userAvatar: member.userAvatar,
-          date: new Date().toDateString(),
-          completedHabits: Math.floor(Math.random() * 5) + 1,
-          totalHabits: Math.floor(Math.random() * 5) + 5,
-          streak: Math.floor(Math.random() * 20),
-          mood: ['😊', '😐', '😞'][Math.floor(Math.random() * 3)] as '😊' | '😐' | '😞',
+          completedHabits: Math.floor(Math.random() * 5),
+          totalHabits: 5,
+          streak: Math.floor(Math.random() * 10),
+          mood: ['😊', '😄', '🙂', '😌'][Math.floor(Math.random() * 4)],
+          date: new Date().toISOString(),
         }));
       },
     }),
     {
       name: 'social-storage',
+    }
+  )
+);
+
+// Notification Store
+export const useNotificationStore = create<NotificationState>()(
+  persist(
+    (set) => ({
+      notifications: [],
+      unreadCount: 0,
+      isLoading: false,
+      
+      fetchNotifications: async () => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        
+        set({ isLoading: true });
+        try {
+          const res = await fetch(`/api/notifications?userId=${user.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            set({ 
+              notifications: data.notifications, 
+              unreadCount: data.unreadCount,
+              isLoading: false 
+            });
+          } else {
+            set({ isLoading: false });
+          }
+        } catch (error) {
+          console.error('Fetch notifications error:', error);
+          set({ isLoading: false });
+        }
+      },
+      
+      markAsRead: async (notificationIds: string[]) => {
+        try {
+          const res = await fetch('/api/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notificationIds }),
+          });
+          
+          if (res.ok) {
+            set(state => ({
+              notifications: state.notifications.map(n =>
+                notificationIds.includes(n.id) ? { ...n, isRead: true } : n
+              ),
+              unreadCount: Math.max(0, state.unreadCount - notificationIds.length),
+            }));
+          }
+        } catch (error) {
+          console.error('Mark as read error:', error);
+        }
+      },
+      
+      markAllAsRead: async () => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        
+        try {
+          const res = await fetch('/api/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id, markAllRead: true }),
+          });
+          
+          if (res.ok) {
+            set(state => ({
+              notifications: state.notifications.map(n => ({ ...n, isRead: true })),
+              unreadCount: 0,
+            }));
+          }
+        } catch (error) {
+          console.error('Mark all as read error:', error);
+        }
+      },
+      
+      clearAll: async () => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        
+        try {
+          const res = await fetch(`/api/notifications?userId=${user.id}&clearAll=true`, {
+            method: 'DELETE',
+          });
+          
+          if (res.ok) {
+            set({ notifications: [], unreadCount: 0 });
+          }
+        } catch (error) {
+          console.error('Clear notifications error:', error);
+        }
+      },
+    }),
+    {
+      name: 'notification-storage',
     }
   )
 );

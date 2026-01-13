@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import { FriendRequest, Friend, User } from '@/models';
+import { FriendRequest, Friend, User, Notification } from '@/models';
 
 // GET friend requests for a user
 export async function GET(request: NextRequest) {
@@ -90,6 +90,20 @@ export async function POST(request: NextRequest) {
       status: 'pending'
     });
     
+    // Get sender's info for notification
+    const fromUser = await User.findById(fromUserId);
+    
+    // Create notification for target user
+    await Notification.create({
+      userId: targetUser._id,
+      type: 'friend_request',
+      title: 'New Friend Request',
+      message: `${fromUser?.name || 'Someone'} sent you a friend request`,
+      fromUserId: fromUserId,
+      relatedId: friendRequest._id.toString(),
+      isRead: false,
+    });
+    
     return NextResponse.json({ 
       message: 'Friend request sent',
       request: {
@@ -128,6 +142,19 @@ export async function PATCH(request: NextRequest) {
       ]);
       
       friendRequest.status = 'accepted';
+      
+      // Get accepter's info for notification
+      const accepter = await User.findById(friendRequest.toUserId);
+      
+      // Create notification for the person who sent the request
+      await Notification.create({
+        userId: friendRequest.fromUserId,
+        type: 'friend_accepted',
+        title: 'Friend Request Accepted',
+        message: `${accepter?.name || 'Someone'} accepted your friend request`,
+        fromUserId: friendRequest.toUserId,
+        isRead: false,
+      });
     } else if (action === 'reject') {
       friendRequest.status = 'rejected';
     }

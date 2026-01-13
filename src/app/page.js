@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTaskStore } from '@/stores';
-import { useAuthStore, useSocialStore } from '@/stores/authStore';
+import { useAuthStore, useSocialStore, useNotificationStore } from '@/stores/authStore';
 import TaskForm from '@/components/TaskForm';
 import HabitList from '@/components/HabitList';
 import WeeklyHabitTable from '@/components/WeeklyHabitTable';
@@ -19,6 +19,8 @@ import UserGuide from '@/components/UserGuide';
 import AuthModal from '@/components/AuthModal';
 import FriendsSection from '@/components/FriendsSection';
 import GroupsSection from '@/components/GroupsSection';
+import NotificationDropdown from '@/components/NotificationDropdown';
+import ScheduleSection from '@/components/ScheduleSection';
 
 export default function Home() {
   const [showForm, setShowForm] = useState(false);
@@ -28,7 +30,17 @@ export default function Home() {
   
   // Auth state
   const { user, isAuthenticated, logout } = useAuthStore();
-  const { friendRequests, groupInvites } = useSocialStore();
+  const { friendRequests, groupInvites, fetchFriendRequests, fetchGroupInvites } = useSocialStore();
+  const { unreadCount, fetchNotifications } = useNotificationStore();
+
+  // Fetch data on mount when authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchFriendRequests();
+      fetchGroupInvites();
+      fetchNotifications();
+    }
+  }, [isAuthenticated, user]);
 
   const habits = tasks.filter(t => t.type === 'Habit');
   const completedToday = habits.filter(t => t.status === 'completed').length;
@@ -38,7 +50,6 @@ export default function Home() {
   // Count pending notifications
   const pendingFriendRequests = friendRequests.filter(r => r.toUserId === user?.id && r.status === 'pending').length;
   const pendingGroupInvites = groupInvites.filter(i => i.toUserId === user?.id && i.status === 'pending').length;
-  const totalNotifications = pendingFriendRequests + pendingGroupInvites;
 
   const navItems = [
     { id: 'habits', label: 'Habits', icon: '📋', description: 'Track daily habits' },
@@ -75,22 +86,8 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Notifications Badge */}
-              {isAuthenticated && totalNotifications > 0 && (
-                <div className="relative">
-                  <button
-                    onClick={() => setActiveTab(pendingFriendRequests > 0 ? 'friends' : 'groups')}
-                    className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center font-bold">
-                      {totalNotifications}
-                    </span>
-                  </button>
-                </div>
-              )}
+              {/* Notification Bell Dropdown */}
+              {isAuthenticated && <NotificationDropdown />}
 
               <UserGuide />
               
@@ -268,6 +265,9 @@ export default function Home() {
           {/* Habits Tab Content */}
           {activeTab === 'habits' && (
             <div className="space-y-4 sm:space-y-6">
+              {/* Daily Schedule Section */}
+              <ScheduleSection />
+
               {/* Quick Stats Grid - TOP */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm">

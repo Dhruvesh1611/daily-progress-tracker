@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import { Friend, User, Task } from '@/models';
+import { Friend, Task } from '@/models';
 
 // GET friends list
 export async function GET(request: NextRequest) {

@@ -63,9 +63,9 @@ export interface SharedProgress {
   odak: string;
   odakName: string;
   userAvatar?: string;
-  date: string;
+  date?: string;
   completedHabits: number;
   totalHabits: number;
   streak: number;
-  mood?: '😊' | '😐' | '😞';
+  mood?: string;
 }
