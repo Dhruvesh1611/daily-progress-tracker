@@ -26,6 +26,7 @@ export default function Home() {
   const [showForm, setShowForm] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeTab, setActiveTab] = useState('habits');
+  const [habitsMode, setHabitsMode] = useState('list');
   const tasks = useTaskStore(state => state.tasks);
   
   // Auth state
@@ -41,6 +42,20 @@ export default function Home() {
       fetchNotifications();
     }
   }, [isAuthenticated, user]);
+
+  // Persist habits mode (list | schedule)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('habits_mode');
+      if (saved === 'list' || saved === 'schedule') setHabitsMode(saved);
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('habits_mode', habitsMode);
+    } catch (e) {}
+  }, [habitsMode]);
 
   const habits = tasks.filter(t => t.type === 'Habit');
   const completedToday = habits.filter(t => t.status === 'completed').length;
@@ -265,11 +280,29 @@ export default function Home() {
           {/* Habits Tab Content */}
           {activeTab === 'habits' && (
             <div className="space-y-4 sm:space-y-6">
-              {/* Daily Schedule Section */}
-              <ScheduleSection />
+              {/* Mode Toggle: Habits list vs 24h Schedule */}
+              <div className="flex items-center gap-2 bg-white rounded-xl p-2 w-full max-w-md">
+                <button
+                  onClick={() => setHabitsMode('list')}
+                  className={`flex-1 py-2 rounded-lg font-medium text-sm transition ${habitsMode === 'list' ? 'bg-gray-900 text-white' : 'text-gray-700'}`}
+                >
+                  Habits
+                </button>
+                <button
+                  onClick={() => setHabitsMode('schedule')}
+                  className={`flex-1 py-2 rounded-lg font-medium text-sm transition ${habitsMode === 'schedule' ? 'bg-gray-900 text-white' : 'text-gray-700'}`}
+                >
+                  24h Schedule
+                </button>
+              </div>
 
-              {/* Quick Stats Grid - TOP */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              {/* Render mode-specific content */}
+              {habitsMode === 'schedule' ? (
+                <ScheduleSection />
+              ) : (
+                <>
+                  {/* Quick Stats Grid - TOP */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm">
                   <div className="flex items-center gap-3 sm:gap-4">
                     <div className="w-12 h-12 sm:w-14 sm:h-14 bg-orange-100 rounded-xl flex items-center justify-center">
@@ -313,13 +346,15 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Habit List & Calendar Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-                <HabitList onAddHabit={() => setShowForm(true)} />
-                <div className="lg:col-span-2">
-                  <MiniCalendar />
-                </div>
-              </div>
+                  {/* Habit List & Calendar Row */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <HabitList onAddHabit={() => setShowForm(true)} />
+                    <div className="lg:col-span-2">
+                      <MiniCalendar />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
