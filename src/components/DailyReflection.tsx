@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useTaskStore } from '@/stores';
 import { Mood } from '@/types';
 
 export const DailyReflection = () => {

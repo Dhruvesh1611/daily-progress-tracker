@@ -4,8 +4,7 @@ import { useMemo, useState } from 'react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 
 export const MoodChart = () => {
-  // Mock mood data - in production this would come from stored reflections
-  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
+  const [viewMode, setViewMode] = useState('week');
   
   const moodData = useMemo(() => {
     const today = new Date();
@@ -13,14 +12,13 @@ export const MoodChart = () => {
     const days = viewMode === 'week' ? 7 : 30;
     
     const moods = ['😊', '😐', '😞'];
-    const moodValues: Record<string, number> = { '😊': 3, '😐': 2, '😞': 1 };
-    const moodLabels: Record<string, string> = { '😊': 'Great', '😐': 'Okay', '😞': 'Tough' };
+    const moodValues = { '😊': 3, '😐': 2, '😞': 1 };
+    const moodLabels = { '😊': 'Great', '😐': 'Okay', '😞': 'Tough' };
     
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(today.getDate() - i);
       
-      // Generate random mood for demo
       const randomMood = moods[Math.floor(Math.random() * 3)];
       
       data.push({
@@ -37,7 +35,6 @@ export const MoodChart = () => {
     return data;
   }, [viewMode]);
 
-  // Calculate mood distribution
   const moodStats = useMemo(() => {
     const counts = { great: 0, okay: 0, tough: 0 };
     moodData.forEach(d => {
@@ -53,7 +50,7 @@ export const MoodChart = () => {
     };
   }, [moodData]);
 
-  const getBarColor = (value: number) => {
+  const getBarColor = (value) => {
     if (value === 3) return '#22c55e';
     if (value === 2) return '#f59e0b';
     return '#ef4444';
@@ -87,7 +84,6 @@ export const MoodChart = () => {
       </div>
 
       <div className="p-3 sm:p-5">
-        {/* Mood Distribution */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-5">
           <div className="bg-green-50 rounded-lg p-2 sm:p-3 text-center border border-green-100">
             <span className="text-xl sm:text-2xl block mb-0.5 sm:mb-1">😊</span>
@@ -106,7 +102,6 @@ export const MoodChart = () => {
           </div>
         </div>
 
-        {/* Chart */}
         <div className="h-40 sm:h-48">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={moodData} barCategoryGap="12%">
@@ -156,7 +151,6 @@ export const MoodChart = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* Legend */}
         <div className="flex items-center justify-center gap-3 sm:gap-6 mt-2 sm:mt-3 text-xs sm:text-sm text-gray-500">
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 sm:w-3 sm:h-3 rounded bg-green-500"></span> Great

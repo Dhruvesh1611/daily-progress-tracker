@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import { Group, User, Task } from '@/models';
+import { Group, User } from '@/models';
 
 // GET groups for a user
 export async function GET(request: NextRequest) {

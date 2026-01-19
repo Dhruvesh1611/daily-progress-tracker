@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react';
 import { useTaskStore } from '@/stores';
-import { Task } from '@/types';
 
 // Get dates for current week
 const getWeekDates = () => {
@@ -22,15 +21,8 @@ const getWeekDates = () => {
 
 const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-interface HabitRowProps {
-  habit: Task;
-  weekDates: Date[];
-  completions: Map<string, boolean>;
-  onToggle: (habitId: string, date: Date) => void;
-}
-
-const HabitRow = ({ habit, weekDates, completions, onToggle }: HabitRowProps) => {
-  const getCompletionForDate = (date: Date) => {
+const HabitRow = ({ habit, weekDates, completions, onToggle }) => {
+  const getCompletionForDate = (date) => {
     const key = `${habit.id}-${date.toDateString()}`;
     return completions.get(key) || false;
   };
@@ -39,7 +31,7 @@ const HabitRow = ({ habit, weekDates, completions, onToggle }: HabitRowProps) =>
   const progress = Math.round((completedDays / 7) * 100);
 
   const getCategoryEmoji = () => {
-    const emojis: Record<string, string> = {
+    const emojis = {
       Health: '💪',
       Study: '📚',
       Work: '💼',
@@ -51,7 +43,6 @@ const HabitRow = ({ habit, weekDates, completions, onToggle }: HabitRowProps) =>
 
   return (
     <tr className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-      {/* Habit Name */}
       <td className="py-3 sm:py-4 px-2 sm:px-4">
         <div className="flex items-center gap-2 sm:gap-3">
           <span className="text-lg sm:text-xl">{getCategoryEmoji()}</span>
@@ -59,7 +50,6 @@ const HabitRow = ({ habit, weekDates, completions, onToggle }: HabitRowProps) =>
         </div>
       </td>
       
-      {/* Progress Bar */}
       <td className="py-3 sm:py-4 px-2 sm:px-3 w-24 sm:w-32">
         <div className="flex items-center gap-1 sm:gap-2">
           <div className="flex-1 h-2 sm:h-2.5 bg-gray-100 rounded-full overflow-hidden">
@@ -74,7 +64,6 @@ const HabitRow = ({ habit, weekDates, completions, onToggle }: HabitRowProps) =>
         </div>
       </td>
 
-      {/* Day Checkboxes */}
       {weekDates.map((date, idx) => {
         const isCompleted = getCompletionForDate(date);
         const isToday = date.toDateString() === new Date().toDateString();
@@ -106,13 +95,13 @@ const HabitRow = ({ habit, weekDates, completions, onToggle }: HabitRowProps) =>
 
 export const WeeklyHabitTable = () => {
   const tasks = useTaskStore(state => state.tasks);
-
-  const [completions, setCompletions] = useState<Map<string, boolean>>(new Map());
+  const updateTask = useTaskStore(state => state.updateTask);
+  const [completions, setCompletions] = useState(new Map());
   
   const weekDates = useMemo(() => getWeekDates(), []);
   const habits = tasks.filter(t => t.type === 'Habit');
 
-  const handleToggle = (habitId: string, date: Date) => {
+  const handleToggle = (habitId, date) => {
     const key = `${habitId}-${date.toDateString()}`;
     setCompletions(prev => {
       const newMap = new Map(prev);
@@ -121,8 +110,7 @@ export const WeeklyHabitTable = () => {
     });
   };
 
-  // Calculate daily progress
-  const getDailyProgress = (date: Date) => {
+  const getDailyProgress = (date) => {
     if (habits.length === 0) return 0;
     const completed = habits.filter(h => {
       const key = `${h.id}-${date.toDateString()}`;

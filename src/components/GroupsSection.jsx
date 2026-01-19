@@ -18,8 +18,8 @@ export const GroupsSection = () => {
   } = useSocialStore();
   
   const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState<string | null>(null);
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [groupForm, setGroupForm] = useState({ name: '', description: '', isPrivate: false });
   const [inviteEmail, setInviteEmail] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -27,7 +27,7 @@ export const GroupsSection = () => {
   const pendingInvites = groupInvites.filter(i => i.toUserId === user?.id && i.status === 'pending');
   const myGroups = groups.filter(g => g.members.some(m => m.userId === user?.id));
 
-  const handleCreateGroup = (e: React.FormEvent) => {
+  const handleCreateGroup = (e) => {
     e.preventDefault();
     if (!groupForm.name.trim()) return;
     
@@ -38,7 +38,7 @@ export const GroupsSection = () => {
     setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
-  const handleInvite = async (e: React.FormEvent) => {
+  const handleInvite = async (e) => {
     e.preventDefault();
     if (!showInviteModal || !inviteEmail.trim()) return;
     
@@ -73,7 +73,6 @@ export const GroupsSection = () => {
         </button>
       </div>
 
-      {/* Message */}
       {message.text && (
         <div className={`px-4 py-3 rounded-lg text-sm font-medium ${
           message.type === 'success' ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'
@@ -82,7 +81,6 @@ export const GroupsSection = () => {
         </div>
       )}
 
-      {/* Pending Invites */}
       {pendingInvites.length > 0 && (
         <div className="bg-purple-50 rounded-lg border border-purple-200 p-3 sm:p-4">
           <h3 className="font-bold text-purple-800 mb-3 flex items-center gap-2">
@@ -115,7 +113,6 @@ export const GroupsSection = () => {
         </div>
       )}
 
-      {/* Groups List */}
       <div className="grid gap-4">
         {myGroups.length === 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
@@ -138,7 +135,6 @@ export const GroupsSection = () => {
                 key={group.id}
                 className="bg-white rounded-lg border border-gray-200 overflow-hidden"
               >
-                {/* Group Header */}
                 <div
                   className={`p-4 cursor-pointer hover:bg-gray-50 transition ${isSelected ? 'bg-purple-50' : ''}`}
                   onClick={() => setSelectedGroup(isSelected ? null : group.id)}
@@ -201,14 +197,12 @@ export const GroupsSection = () => {
                   </div>
                 </div>
 
-                {/* Group Details */}
                 {isSelected && (
                   <div className="border-t border-gray-100 p-4">
                     {group.description && (
                       <p className="text-sm text-gray-600 mb-4">{group.description}</p>
                     )}
                     
-                    {/* Members Progress */}
                     <h4 className="font-bold text-gray-700 mb-3">Members Progress</h4>
                     <div className="space-y-3">
                       {groupProgress.map((member, idx) => (
@@ -248,7 +242,6 @@ export const GroupsSection = () => {
         )}
       </div>
 
-      {/* Create Group Modal */}
       {showCreateGroup && (
         <div 
           className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -310,7 +303,6 @@ export const GroupsSection = () => {
         </div>
       )}
 
-      {/* Invite Modal */}
       {showInviteModal && (
         <div 
           className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"

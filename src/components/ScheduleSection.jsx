@@ -3,24 +3,16 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 
-const pad = (n: number) => String(n).padStart(2, '0');
+const pad = (n) => String(n).padStart(2, '0');
 
 const STORAGE_PREFIX = 'schedule_';
 
-type Entry = {
-  text: string;
-  duration: number;
-  completed?: boolean;
-  start: string;
-  end: string;
-};
-
-function parseTime(t: string): number {
+function parseTime(t) {
   const [hh, mm] = (t || '00:00').split(':').map(Number);
   return hh * 60 + mm;
 }
 
-function minutesToTime(total: number): string {
+function minutesToTime(total) {
   total = ((total % 1440) + 1440) % 1440;
   return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
 }
@@ -33,7 +25,7 @@ export default function ScheduleSection() {
     [user?.id]
   );
 
-  const [entries, setEntries] = useState<Record<string, Entry>>({});
+  const [entries, setEntries] = useState({});
   const [isLoaded, setIsLoaded] = useState(false);
 
   /* ---------------- Load Data ---------------- */
@@ -60,7 +52,7 @@ export default function ScheduleSection() {
 
   /* ---------------- Persistence ---------------- */
   const persist = useCallback(
-    async (next: Record<string, Entry>) => {
+    async (next) => {
       setEntries(next);
 
       try {
@@ -81,8 +73,8 @@ export default function ScheduleSection() {
   );
 
   /* ---------------- Entry Updates ---------------- */
-  const updateEntry = (id: string, partial: Partial<Entry>) => {
-    const current: Entry = entries[id] ?? {
+  const updateEntry = (id, partial) => {
+    const current = entries[id] ?? {
       text: '',
       duration: 15,
       completed: false,
@@ -90,7 +82,7 @@ export default function ScheduleSection() {
       end: '08:15',
     };
 
-    const updated: Entry = { ...current, ...partial };
+    const updated = { ...current, ...partial };
 
     if (partial.start || partial.end) {
       const startMins = parseTime(updated.start);
@@ -109,7 +101,7 @@ export default function ScheduleSection() {
     const lastEntry = values.length ? values[values.length - 1] : undefined;
     const startTime = lastEntry?.end ?? '08:00';
 
-    const newEntry: Entry = {
+    const newEntry = {
       text: '',
       duration: 15,
       completed: false,
@@ -120,7 +112,7 @@ export default function ScheduleSection() {
     persist({ ...entries, [String(Date.now())]: newEntry });
   };
 
-  const clearSlot = (id: string) => {
+  const clearSlot = (id) => {
     const next = { ...entries };
     delete next[id];
     persist(next);

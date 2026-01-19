@@ -115,8 +115,11 @@ export async function PATCH(request: NextRequest) {
     }
     
     if (action === 'accept') {
-      // Add user to group
+      // Add user to group: validate user exists
       const user = await User.findById(invite.toUserId);
+      if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
       
       await Group.findByIdAndUpdate(invite.groupId, {
         $push: {

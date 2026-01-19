@@ -92,6 +92,9 @@ export async function POST(request: NextRequest) {
     
     // Get sender's info for notification
     const fromUser = await User.findById(fromUserId);
+    if (!fromUser) {
+      return NextResponse.json({ error: 'From user not found' }, { status: 404 });
+    }
     
     // Create notification for target user
     await Notification.create({
@@ -143,8 +146,11 @@ export async function PATCH(request: NextRequest) {
       
       friendRequest.status = 'accepted';
       
-      // Get accepter's info for notification
+      // Get accepter's info for notification and validate
       const accepter = await User.findById(friendRequest.toUserId);
+      if (!accepter) {
+        return NextResponse.json({ error: 'Accepter user not found' }, { status: 404 });
+      }
       
       // Create notification for the person who sent the request
       await Notification.create({
