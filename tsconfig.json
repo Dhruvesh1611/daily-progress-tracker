@@ -19,7 +19,10 @@
     "noEmit": true,
     "jsx": "react-jsx",
     /* Path mapping */
-    "baseUrl": ".",
+    "baseUrl": "./",
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
     "paths": {
       "@/*": [
         "./src/*"
@@ -41,6 +44,7 @@
   "include": [
     "src",
     ".next/types/**/*.ts",
+    "next-env.d.ts",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
